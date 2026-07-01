@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "DMed",
+    "slug": "dmed-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0b3b5c"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b3b5c"
+      }
+    }
+  }
+}

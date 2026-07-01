@@ -1,0 +1,9 @@
+runtime/
+build/pyinstaller/
+dist/
+frontend/node_modules/
+frontend/build/
+backend/venv/
+__pycache__/
+*.pyc
+.env

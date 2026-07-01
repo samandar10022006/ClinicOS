@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DMed - Aqlli Shifoxona</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+        body { background: #f0f4f8; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        header { background: linear-gradient(135deg, #0b3b5c, #1a6b8a); color: white; padding: 30px; border-radius: 20px; text-align: center; margin-bottom: 30px; }
+        header h1 { font-size: 2.5rem; }
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        @media (max-width: 768px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-card .number { font-size: 2rem; font-weight: bold; color: #0b3b5c; }
+        .tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+        .tab { padding: 10px 20px; border: none; border-radius: 10px; background: #e2e8f0; cursor: pointer; }
+        .tab.active { background: #0b3b5c; color: white; }
+        .card { background: white; padding: 25px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); margin-bottom: 20px; }
+        input, textarea, button { width: 100%; padding: 12px; margin: 6px 0; border: 1px solid #dce1e8; border-radius: 10px; font-size: 1rem; }
+        textarea { height: 80px; }
+        button { background: #0b3b5c; color: white; font-weight: bold; border: none; cursor: pointer; }
+        button:hover { background: #1a6b8a; }
+        .badge { padding: 4px 12px; border-radius: 30px; font-size: 0.8rem; font-weight: bold; color: white; }
+        .urgent { background: #e53e3e; } .chronic { background: #3182ce; } .fast { background: #38a169; }
+        .hidden { display: none; }
+        .waiting-item { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid #e2e8f0; align-items: center; flex-wrap: wrap; gap: 8px; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header><h1>DMed</h1><p>Har bir bemor to'g'ri kategoriya, to'g'ri palata, to'g'ri vaqtda.</p></header>
+    <div class="stats-grid">
+        <div class="stat-card"><div class="number" id="statWaiting">0</div><div>Navbatda</div></div>
+        <div class="stat-card"><div class="number" id="statUrgent">0</div><div>Shoshilinch</div></div>
+        <div class="stat-card"><div class="number" id="statChronic">0</div><div>Surunkali</div></div>
+        <div class="stat-card"><div class="number" id="statFast">0</div><div>Tez tibbiy</div></div>
+    </div>
+    <div class="tabs">
+        <button class="tab active" data-tab="register">Ro'yxatga olish</button>
+        <button class="tab" data-tab="waiting">Navbat</button>
+        <button class="tab" data-tab="appointment">Onlayn qabul</button>
+        <button class="tab" data-tab="admin">Admin</button>
+    </div>
+    <div id="tabRegister" class="card">
+        <h2>Bemor ro'yxatga olish</h2>
+        <form id="patientForm">
+            <input id="fullName" placeholder="To'liq ism" required>
+            <input id="phone" placeholder="Telefon" required>
+            <textarea id="complaint" placeholder="Shikoyat" required></textarea>
+            <button type="submit">Ro'yxatga olish</button>
+        </form>
+        <div id="registerResult" class="hidden card" style="margin-top:15px;background:#f8fafc;"></div>
+    </div>
+    <div id="tabWaiting" class="card hidden"><h2>Navbat</h2><div id="waitingList"></div></div>
+    <div id="tabAppointment" class="card hidden">
+        <h2>Onlayn qabul</h2>
+        <form id="bookingForm">
+            <input id="bookName" placeholder="Ism" required>
+            <input id="bookPhone" placeholder="Telefon" required>
+            <input type="datetime-local" id="bookDatetime" required>
+            <button type="submit">Yozilish</button>
+        </form>
+    </div>
+    <div id="tabAdmin" class="card hidden"><h2>Admin</h2><div id="adminDashboard"></div></div>
+</div>
+<script>
+const API = window.location.origin;
+document.querySelectorAll('.tab').forEach(btn => btn.addEventListener('click', e => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    e.target.classList.add('active');
+    ['register','waiting','appointment','admin'].forEach(t => {
+        document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('hidden', t !== e.target.dataset.tab);
+    });
+    if (e.target.dataset.tab === 'waiting') loadWaiting();
+    if (e.target.dataset.tab === 'admin') loadAdmin();
+}));
+async function loadStats() {
+    const res = await fetch(`${API}/api/v1/patients/stats`);
+    const d = await res.json();
+    statWaiting.textContent = d.waiting || 0;
+    statUrgent.textContent = d.urgent || 0;
+    statChronic.textContent = d.chronic || 0;
+    statFast.textContent = d.fast || 0;
+}
+patientForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const res = await fetch(`${API}/api/v1/patients/register`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ full_name: fullName.value, phone: phone.value, complaint: complaint.value, is_online: false })
+    });
+    const r = await res.json();
+    registerResult.classList.remove('hidden');
+    registerResult.innerHTML = `<p><strong>${r.full_name}</strong> — ${r.category} — ${r.estimated_wait} daqiqa kutish</p>`;
+    patientForm.reset(); loadStats();
+});
+async function loadWaiting() {
+    const list = await (await fetch(`${API}/api/v1/patients/waiting`)).json();
+    waitingList.innerHTML = list.length ? list.map(p => `
+        <div class="waiting-item">
+            <div><strong>${p.full_name}</strong><br><small>${p.complaint}</small></div>
+            <div><span class="badge ${p.category}">${p.category}</span>
+            <button onclick="treat(${p.id})" style="width:auto;padding:5px 12px;margin-left:8px;">Davolandi</button></div>
+        </div>`).join('') : '<p>Navbat bo\'sh</p>';
+}
+async function treat(id) {
+    await fetch(`${API}/api/v1/patients/${id}/status?status=treated`, { method: 'PUT' });
+    loadWaiting(); loadStats();
+}
+bookingForm.addEventListener('submit', async e => {
+    e.preventDefault();
+    const reg = await (await fetch(`${API}/api/v1/patients/register`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ full_name: bookName.value, phone: bookPhone.value, complaint: 'Onlayn qabul', is_online: true })
+    })).json();
+    await fetch(`${API}/api/v1/appointments/book`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ patient_id: reg.id, doctor_id: 1, datetime: bookDatetime.value })
+    });
+    alert('Qabulga yozildingiz!'); bookingForm.reset();
+});
+async function loadAdmin() {
+    const d = await (await fetch(`${API}/api/v1/admin/dashboard`)).json();
+    adminDashboard.innerHTML = `<p>Jami palatalar: ${d.total_beds} | Bo'sh: ${d.available_beds} | Bandlik: ${d.occupancy_rate}% | Bemorlar: ${d.total_patients}</p>`;
+}
+loadStats(); setInterval(loadStats, 5000);
+</script>
+</body>
+</html>
